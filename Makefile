@@ -1,10 +1,12 @@
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -Werror -pedantic
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic
 
 all: traceroute
 
+icmp.o: icmp.h icmp.c
+
 traceroute.o: traceroute.c
-traceroute: traceroute.o
+traceroute: traceroute.o icmp.o
 
 clean:
-	rm *.o traceroute
+	rm -f *.o traceroute
