@@ -8,8 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-
-int is_valid_ipaddr(const char *ip_addr){
+int is_valid_ipaddr(const char *ip_addr) {
     struct sockaddr_in temp;
     return inet_pton(AF_INET, ip_addr, &temp.sin_addr) != 0;
 }
@@ -19,7 +18,7 @@ static void print_as_bytes(unsigned char *buff, size_t length) {
         printf("%.2x ", *buff);
 }
 
-int receive_packet(int sockfd) {
+int receive_packet(int sockfd, char *sender_ip_str) {
     struct sockaddr_in sender;
     socklen_t sender_len = sizeof(sender);
     u_int8_t buffer[IP_MAXPACKET];
@@ -31,8 +30,7 @@ int receive_packet(int sockfd) {
     }
 
     struct iphdr *ip_header = (struct iphdr *)buffer;
-    char sender_ip_str[20];
-    inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str, sizeof(sender_ip_str));
+    inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str, 20U);
     printf("Received IP packet with ICMP content from: %s\n", sender_ip_str);
 
     size_t ip_header_len = 4 * ip_header->ihl;
@@ -58,7 +56,7 @@ static u_int16_t compute_icmp_checksum(const void *buff, size_t length) {
     return (u_int16_t)(~(sum + (sum >> 16)));
 }
 
-ssize_t send_echo_packet(int sockfd, uint16_t id, uint16_t seq, const char* ip_addr) {
+ssize_t send_echo_packet(int sockfd, uint16_t id, uint16_t seq, const char *ip_addr, int ttl) {
     struct icmphdr header;
     header.type = ICMP_ECHO;
     header.code = 0;
@@ -72,7 +70,6 @@ ssize_t send_echo_packet(int sockfd, uint16_t id, uint16_t seq, const char* ip_a
     recipient.sin_family = AF_INET;
     inet_pton(AF_INET, ip_addr, &recipient.sin_addr);
 
-    int ttl = 42;
     setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(int));
 
     ssize_t bytes_sent = sendto(sockfd, &header, sizeof(header), 0, (struct sockaddr *)&recipient, sizeof(recipient));
