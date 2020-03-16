@@ -8,6 +8,12 @@
 #include <stdio.h>
 #include <string.h>
 
+
+int is_valid_ipaddr(const char *ip_addr){
+    struct sockaddr_in temp;
+    return inet_pton(AF_INET, ip_addr, &temp.sin_addr) != 0;
+}
+
 static void print_as_bytes(unsigned char *buff, size_t length) {
     for (size_t i = 0; i < length; i++, buff++)
         printf("%.2x ", *buff);
