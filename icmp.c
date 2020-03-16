@@ -1,10 +1,11 @@
 #include "icmp.h"
 
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 static void print_as_bytes(unsigned char *buff, size_t length) {
@@ -39,4 +40,36 @@ int receive_packet(int sockfd) {
     printf("\n\n");
 
     return EXIT_SUCCESS;
+}
+
+static u_int16_t compute_icmp_checksum(const void *buff, size_t length) {
+    u_int32_t sum;
+    const u_int16_t *ptr = buff;
+    assert(length % 2 == 0);
+    for (sum = 0; length > 0; length -= 2)
+        sum += *ptr++;
+    sum = (sum >> 16) + (sum & 0xffff);
+    return (u_int16_t)(~(sum + (sum >> 16)));
+}
+
+ssize_t send_echo_packet(int sockfd, uint16_t id, uint16_t seq, const char* ip_addr) {
+    struct icmphdr header;
+    header.type = ICMP_ECHO;
+    header.code = 0;
+    header.un.echo.id = id;
+    header.un.echo.sequence = seq;
+    header.checksum = 0;
+    header.checksum = compute_icmp_checksum(&header, sizeof(header));
+
+    struct sockaddr_in recipient;
+    bzero(&recipient, sizeof(recipient));
+    recipient.sin_family = AF_INET;
+    inet_pton(AF_INET, ip_addr, &recipient.sin_addr);
+
+    int ttl = 42;
+    setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(int));
+
+    ssize_t bytes_sent = sendto(sockfd, &header, sizeof(header), 0, (struct sockaddr *)&recipient, sizeof(recipient));
+
+    return bytes_sent;
 }

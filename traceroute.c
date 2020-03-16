@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <netinet/ip.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 int main() {
@@ -15,6 +14,8 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    while (!receive_packet(sockfd))
-        ;
+    if (send_echo_packet(sockfd, 1, 1, "8.8.8.8"))
+        receive_packet(sockfd);
+
+    return EXIT_SUCCESS;
 }
