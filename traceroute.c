@@ -4,7 +4,6 @@
 #include <netinet/ip.h>
 #include <stdio.h>
 #include <string.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 int main(int argc, char *argv[]) {
@@ -27,11 +26,13 @@ int main(int argc, char *argv[]) {
     }
 
     uint16_t pid = getpid();
-    char sender_ip_str[20];
+    struct timeval time_now;
+
     for (int ttl = 1; ttl <= TTL_RANGE; ttl++)
-        if (send_echo_packet(sockfd, pid, ttl, argv[1], ttl) > 0) {
-            receive_packet(sockfd, sender_ip_str);
-            if (strcmp(argv[1], sender_ip_str) == 0)
+        if (send_echo_packets(sockfd, pid, ttl, ttl, argv[1]) > 0) {
+            gettimeofday(&time_now, NULL);
+            printf("%u. \t", ttl);
+            if (receive_packets(sockfd, time_now) == 1)
                 return EXIT_SUCCESS;
         }
 }
