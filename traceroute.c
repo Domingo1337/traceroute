@@ -4,8 +4,8 @@
 #include <netinet/ip.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <sys/time.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
     if (argc < 2 || !is_valid_ipaddr(argv[1])) {
@@ -26,9 +26,10 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    uint16_t pid = getpid();
     char sender_ip_str[20];
-    for (int ttl = 1; ttl <= 30; ttl++)
-        if (send_echo_packet(sockfd, 1, 1, argv[1], ttl)) {
+    for (int ttl = 1; ttl <= TTL_RANGE; ttl++)
+        if (send_echo_packet(sockfd, pid, ttl, argv[1], ttl) > 0) {
             receive_packet(sockfd, sender_ip_str);
             if (strcmp(argv[1], sender_ip_str) == 0)
                 return EXIT_SUCCESS;
