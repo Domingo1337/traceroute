@@ -4,6 +4,7 @@
 
 #define PACKETS_PER_TTL 3
 #define TTL_RANGE 30
+#define MAX_MS_WAIT 1000.f
 
 int is_valid_ipaddr(const char *ip_addr);
 

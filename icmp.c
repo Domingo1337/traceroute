@@ -20,9 +20,10 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
     char sender_ip_str[PACKETS_PER_TTL][16];
     int host_reached = 0;
     float time_sum = 0.f;
+    float time_elapsed = 0.f;
 
     int i = 0;
-    while (i < PACKETS_PER_TTL) {
+    while (i < PACKETS_PER_TTL && time_elapsed < MAX_MS_WAIT) {
         ssize_t packet_len = recvfrom(sockfd, buffer, IP_MAXPACKET, 0, (struct sockaddr *)&sender, &sender_len);
         struct timeval time_now;
         if (packet_len < 0) {
@@ -34,6 +35,7 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
             return host_reached;
         }
         gettimeofday(&time_now, NULL);
+        float time_elapsed = (time_now.tv_sec - time_send.tv_sec) * 1000.f + (time_now.tv_usec - time_send.tv_usec) / 1000.f;
 
         struct iphdr *ip_header = (struct iphdr *)buffer;
         inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str[i], 20U);
@@ -44,15 +46,16 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
             ip_header = (struct iphdr *)(icmp_header + 1);
             icmp_header = (struct icmphdr *)((uint8_t *)ip_header + 4 * ip_header->ihl);
         } else if (icmp_header->type != ICMP_ECHOREPLY) {
+            // fprintf(stderr, "discarded packet\n");
             continue;
         }
 
         if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq) {
+            // fprintf(stderr, "discarded packet\n");
             continue;
         }
         
-        float time_i = (time_now.tv_sec - time_send.tv_sec) * 1000.f + (time_now.tv_usec - time_send.tv_usec) / 1000.f;
-        time_sum += time_i;
+        time_sum += time_elapsed;
 
         if (icmp_header->type == ICMP_ECHOREPLY) {
             host_reached = 1;
