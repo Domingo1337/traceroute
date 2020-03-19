@@ -13,29 +13,30 @@ int is_valid_ipaddr(const char *ip_addr) {
     return inet_pton(AF_INET, ip_addr, &temp.sin_addr) != 0;
 }
 
-int receive_packets(int sockfd, struct timeval time_send) {
+int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_send) {
     struct sockaddr_in sender;
     socklen_t sender_len = sizeof(sender);
     u_int8_t buffer[IP_MAXPACKET];
-    char sender_ip_str[20];
+    char sender_ip_str[3][16];
     int host_reached = 0;
     float time_sum = 0.f;
 
-    for (int i = 0; i < PACKETS_PER_TTL; i++) {
+    int i = 0;
+    while (i < PACKETS_PER_TTL) {
         ssize_t packet_len = recvfrom(sockfd, buffer, IP_MAXPACKET, 0, (struct sockaddr *)&sender, &sender_len);
         struct timeval time_now;
-        gettimeofday(&time_now, NULL);
         if (packet_len < 0) {
             if (errno == EWOULDBLOCK) {
-                printf("*\n");
+                printf(i == 0 ? "*\n" : "???\n");
             } else {
                 fprintf(stderr, "recvfrom error: %s\n", strerror(errno));
             }
             return host_reached;
         }
+        gettimeofday(&time_now, NULL);
 
         struct iphdr *ip_header = (struct iphdr *)buffer;
-        inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str, 20U);
+        inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str[i], 20U);
 
         struct icmphdr *icmp_header = (struct icmphdr *)(buffer + 4 * ip_header->ihl);
 
@@ -44,21 +45,24 @@ int receive_packets(int sockfd, struct timeval time_send) {
             icmp_header = (struct icmphdr *)((uint8_t *)ip_header + 4 * ip_header->ihl);
         } else if (icmp_header->type != ICMP_ECHOREPLY) {
             printf("THAT'S WEIRD, PACKET CODE IS %u", icmp_header->type);
+            continue;
         } else {
             host_reached = 1;
         }
         float time_i = (time_now.tv_sec - time_send.tv_sec) * 1000.f + (time_now.tv_usec - time_send.tv_usec) / 1000.f;
         time_sum += time_i;
 
-        if (i == 0) {
-            printf("%-20s", sender_ip_str);
-        }
-        printf("\t%.2fms", time_i);
-        if (i == 2) {
-            printf("\t(%.2fms)", time_sum / 3.f);
-        }
+        if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq)
+            continue;
+
+        int print_ip = 0;
+        for (int j = 0; j < i; j++)
+            print_ip = print_ip || strcmp(sender_ip_str[i], sender_ip_str[j]) == 0;
+        if (!print_ip)
+            printf("%-16s", sender_ip_str[i]);
+        i++;
     }
-    printf("\n");
+    printf("%.0fms\n", time_sum / PACKETS_PER_TTL);
     return host_reached;
 }
 

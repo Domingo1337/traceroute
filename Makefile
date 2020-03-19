@@ -8,5 +8,7 @@ icmp.o: icmp.h icmp.c
 traceroute.o: traceroute.c
 traceroute: traceroute.o icmp.o
 
-clean:
+distclean:
 	rm -f *.o traceroute
+clean:
+	rm -f *.o

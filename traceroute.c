@@ -31,8 +31,9 @@ int main(int argc, char *argv[]) {
     for (int ttl = 1; ttl <= TTL_RANGE; ttl++)
         if (send_echo_packets(sockfd, pid, ttl, ttl, argv[1]) > 0) {
             gettimeofday(&time_now, NULL);
-            printf("%u. \t", ttl);
-            if (receive_packets(sockfd, time_now) == 1)
+            printf("%2u. ", ttl);
+            fflush(stdout);
+            if (receive_packets(sockfd, pid, ttl, time_now) == 1)
                 return EXIT_SUCCESS;
         }
 }
