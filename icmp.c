@@ -17,7 +17,7 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
     struct sockaddr_in sender;
     socklen_t sender_len = sizeof(sender);
     u_int8_t buffer[IP_MAXPACKET];
-    char sender_ip_str[3][16];
+    char sender_ip_str[PACKETS_PER_TTL][16];
     int host_reached = 0;
     float time_sum = 0.f;
 
@@ -44,20 +44,26 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
             ip_header = (struct iphdr *)(icmp_header + 1);
             icmp_header = (struct icmphdr *)((uint8_t *)ip_header + 4 * ip_header->ihl);
         } else if (icmp_header->type != ICMP_ECHOREPLY) {
-            printf("THAT'S WEIRD, PACKET CODE IS %u", icmp_header->type);
             continue;
-        } else {
-            host_reached = 1;
         }
+
+        if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq) {
+            continue;
+        }
+        
         float time_i = (time_now.tv_sec - time_send.tv_sec) * 1000.f + (time_now.tv_usec - time_send.tv_usec) / 1000.f;
         time_sum += time_i;
 
-        if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq)
-            continue;
+        if (icmp_header->type == ICMP_ECHOREPLY) {
+            host_reached = 1;
+        }
 
         int print_ip = 0;
-        for (int j = 0; j < i; j++)
+        for (int j = 0; j < i; j++) {
             print_ip = print_ip || strcmp(sender_ip_str[i], sender_ip_str[j]) == 0;
+            if (strcmp(sender_ip_str[i], sender_ip_str[j]) != 0)
+                printf("WOOOOOAH NEW ADRESS: %s", sender_ip_str[i]);
+        }
         if (!print_ip)
             printf("%-16s", sender_ip_str[i]);
         i++;
