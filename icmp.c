@@ -13,19 +13,28 @@ int is_valid_ipaddr(const char *ip_addr) {
     return inet_pton(AF_INET, ip_addr, &temp.sin_addr) != 0;
 }
 
-int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_send) {
+int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_until) {
     struct sockaddr_in sender;
     socklen_t sender_len = sizeof(sender);
     u_int8_t buffer[IP_MAXPACKET];
     char sender_ip_str[PACKETS_PER_TTL][16];
-    int host_reached = 0;
     float time_sum = 0.f;
-    float time_elapsed = 0.f;
+    struct timeval time_left;
+    struct timeval time_now;
 
     int i = 0;
-    while (i < PACKETS_PER_TTL && time_elapsed < MAX_MS_WAIT) {
+    int host_reached = 0;
+
+    while (i < PACKETS_PER_TTL && !gettimeofday(&time_now, NULL) && timercmp(&time_now, &time_until, <) == 1) {
+        timersub(&time_until, &time_now, &time_left);
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &time_left, sizeof(time_left)) < 0) {
+            perror(strerror(errno));
+            return EXIT_FAILURE;
+        }
+
         ssize_t packet_len = recvfrom(sockfd, buffer, IP_MAXPACKET, 0, (struct sockaddr *)&sender, &sender_len);
-        struct timeval time_now;
+        assert(gettimeofday(&time_now, NULL) == 0);
+
         if (packet_len < 0) {
             if (errno == EWOULDBLOCK) {
                 printf(i == 0 ? "*\n" : "???\n");
@@ -34,8 +43,7 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
             }
             return host_reached;
         }
-        gettimeofday(&time_now, NULL);
-        float time_elapsed = (time_now.tv_sec - time_send.tv_sec) * 1000.f + (time_now.tv_usec - time_send.tv_usec) / 1000.f;
+        assert(gettimeofday(&time_now, NULL) == 0);
 
         struct iphdr *ip_header = (struct iphdr *)buffer;
         inet_ntop(AF_INET, &(sender.sin_addr), sender_ip_str[i], 20U);
@@ -46,29 +54,24 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_s
             ip_header = (struct iphdr *)(icmp_header + 1);
             icmp_header = (struct icmphdr *)((uint8_t *)ip_header + 4 * ip_header->ihl);
         } else if (icmp_header->type != ICMP_ECHOREPLY) {
-            // fprintf(stderr, "discarded packet\n");
             continue;
         }
 
-        if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq) {
-            // fprintf(stderr, "discarded packet\n");
+        if (icmp_header->un.echo.id != id || icmp_header->un.echo.sequence != seq)
             continue;
-        }
-        
-        time_sum += time_elapsed;
+
+        time_sum += (time_now.tv_sec - time_until.tv_sec + 1) * 1000 + (time_now.tv_usec - time_until.tv_usec) / 1000.f;
 
         if (icmp_header->type == ICMP_ECHOREPLY) {
             host_reached = 1;
         }
 
-        int print_ip = 0;
-        for (int j = 0; j < i; j++) {
-            print_ip = print_ip || strcmp(sender_ip_str[i], sender_ip_str[j]) == 0;
-            if (strcmp(sender_ip_str[i], sender_ip_str[j]) != 0)
-                printf("WOOOOOAH NEW ADRESS: %s", sender_ip_str[i]);
-        }
-        if (!print_ip)
+        int should_print_ip = 1;
+        for (int j = 0; j < i; j++)
+            should_print_ip = 1 && strcmp(sender_ip_str[i], sender_ip_str[j]);
+        if (should_print_ip)
             printf("%-16s", sender_ip_str[i]);
+
         i++;
     }
     printf("%.0fms\n", time_sum / PACKETS_PER_TTL);
