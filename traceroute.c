@@ -24,9 +24,9 @@ int main(int argc, char *argv[]) {
     uint16_t pid = getpid();
     struct timeval time_now;
     for (int ttl = 1; ttl <= TTL_RANGE; ttl++) {
-        if (send_echo_packets(sockfd, pid, ttl, ttl, argv[1]) > 0) {
+        if (send_echo_packets(sockfd, pid, ttl, ttl, argv[1]) == 0) {
             gettimeofday(&time_now, NULL);
-            time_now.tv_sec++;
+            time_now.tv_sec += SEC_FOR_ANSWER;
             printf("%2u. ", ttl);
             fflush(stdout);
             if (receive_packets(sockfd, pid, ttl, time_now) == 1) {
