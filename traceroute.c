@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "icmp.h"
+#include "echo.h"
 
 // program sends ICMP echo reply packets with increasing ttl in range [1..TTL_RANGE]
 #define TTL_RANGE 30
