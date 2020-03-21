@@ -1,5 +1,3 @@
-#include "icmp.h"
-
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
@@ -7,9 +5,13 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "icmp.h"
+
+// program sends ICMP echo reply packets with increasing ttl in range [1..TTL_RANGE]
 #define TTL_RANGE 30
 
 int main(int argc, char *argv[]) {
+    // store target recipient data
     struct sockaddr_in recipient;
     bzero(&recipient, sizeof(recipient));
     recipient.sin_family = AF_INET;
@@ -20,15 +22,18 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    // prepare socket
     int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sockfd < 0) {
         fprintf(stderr, "socket error: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
-    uint16_t pid = getpid();
     struct timeval time_now;
-    for (int ttl = 1; ttl <= TTL_RANGE; ttl++) {
+    
+    // use program's pid and ttl to identify sent packets
+    uint16_t pid = getpid();
+    for (uint16_t ttl = 1; ttl <= TTL_RANGE; ttl++) {
         if (send_echo_packets(sockfd, pid, ttl, ttl, (struct sockaddr *)&recipient) == 0) {
             assert(gettimeofday(&time_now, NULL) == 0);
             time_now.tv_sec += SEC_FOR_ANSWER;

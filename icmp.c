@@ -58,7 +58,7 @@ int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_u
 
         int should_print_ip = 1;
         for (int j = 0; j < i; j++)
-            should_print_ip = 1 && strcmp(sender_ip_str[i], sender_ip_str[j]);
+            should_print_ip = should_print_ip && strncmp(sender_ip_str[i], sender_ip_str[j], 16);
         if (should_print_ip)
             printf("%-16s", sender_ip_str[i]);
 

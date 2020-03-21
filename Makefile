@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic -O2
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic
 
 all: traceroute
 
