@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     // prepare socket
     int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (sockfd < 0) {
-        fprintf(stderr, "socket error: %s\n", strerror(errno));
+        fprintf(stderr, "socket error: %s\nMake sure you have root privileges, needed to create raw sockets.\n", strerror(errno));
         return EXIT_FAILURE;
     }
 
@@ -52,6 +52,6 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     }
-    fprintf(stderr, "Couldn't reach target in %d hops, aborting.\n", TTL_RANGE);
+    fprintf(stderr, "Couldn't reach target %s in %d hops, aborting.\n", argv[1], TTL_RANGE);
     return EXIT_FAILURE;
 }
