@@ -3,15 +3,9 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
-#include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <stdio.h>
 #include <string.h>
-
-int is_valid_ipaddr(const char *ip_addr) {
-    struct sockaddr_in temp;
-    return inet_pton(AF_INET, ip_addr, &temp.sin_addr) != 0;
-}
 
 int receive_packets(int sockfd, uint16_t id, uint16_t seq, struct timeval time_until) {
     struct sockaddr_in sender;
@@ -87,7 +81,7 @@ static u_int16_t compute_icmp_checksum(const void *buff, size_t length) {
     return (u_int16_t)(~(sum + (sum >> 16)));
 }
 
-int send_echo_packets(int sockfd, uint16_t id, uint16_t seq, int ttl, const char *ip_addr) {
+int send_echo_packets(int sockfd, uint16_t id, uint16_t seq, int ttl, struct sockaddr *recipient) {
     struct icmphdr header;
     header.type = ICMP_ECHO;
     header.code = 0;
@@ -96,18 +90,13 @@ int send_echo_packets(int sockfd, uint16_t id, uint16_t seq, int ttl, const char
     header.checksum = 0;
     header.checksum = compute_icmp_checksum(&header, sizeof(header));
 
-    struct sockaddr_in recipient;
-    bzero(&recipient, sizeof(recipient));
-    recipient.sin_family = AF_INET;
-    inet_pton(AF_INET, ip_addr, &recipient.sin_addr);
-
     if (setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(int)) < 0) {
         fprintf(stderr, "setsockopt error: %s\n", strerror(errno));
         return -1;
     }
 
     for (int i = 0; i < PACKETS_PER_TTL; i++) {
-        if (sendto(sockfd, &header, sizeof(header), 0, (struct sockaddr *)&recipient, sizeof(recipient)) < 0) {
+        if (sendto(sockfd, &header, sizeof(header), 0, recipient, sizeof(struct sockaddr)) < 0) {
             fprintf(stderr, "sendto error: %s\n", strerror(errno));
             return -1;
         }
